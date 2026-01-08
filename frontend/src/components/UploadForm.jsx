@@ -6,7 +6,10 @@ const UploadForm = ({ setResult, setLoading, setError }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file) {
+      setError("Please select an image or video file");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -14,6 +17,7 @@ const UploadForm = ({ setResult, setLoading, setError }) => {
     try {
       setLoading(true);
       setError("");
+      setResult(null);
 
       const res = await axios.post(
         "http://localhost:8000/predict",
@@ -22,7 +26,7 @@ const UploadForm = ({ setResult, setLoading, setError }) => {
 
       setResult(res.data);
     } catch {
-      setError("Backend not connected yet");
+      setError("Backend not connected or error occurred");
     } finally {
       setLoading(false);
     }
@@ -31,16 +35,23 @@ const UploadForm = ({ setResult, setLoading, setError }) => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white p-6 rounded-xl shadow"
+      className="border-2 border-dashed border-indigo-400 rounded-xl p-6 bg-indigo-50 text-center"
     >
+      <p className="text-gray-700 font-medium mb-3">
+        Upload Driver Image / Video
+      </p>
+
       <input
         type="file"
         accept="image/*,video/*"
         onChange={(e) => setFile(e.target.files[0])}
-        className="mb-4"
+        className="mb-4 w-full file:bg-indigo-600 file:text-white file:px-4 file:py-2 file:rounded-lg file:border-0 file:cursor-pointer"
       />
 
-      <button className="bg-blue-600 text-white px-4 py-2 rounded">
+      <button
+        type="submit"
+        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-2 rounded-lg transition-all duration-300 shadow-md"
+      >
         Upload & Analyze
       </button>
     </form>

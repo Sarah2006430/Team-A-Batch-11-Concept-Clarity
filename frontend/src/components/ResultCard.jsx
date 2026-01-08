@@ -1,20 +1,43 @@
 const ResultCard = ({ result }) => {
   if (!result) return null;
 
-  const riskColor =
-    result.risk === "High"
-      ? "text-red-600"
-      : result.risk === "Medium"
-      ? "text-yellow-500"
-      : "text-green-600";
+  const riskStyles = {
+    High: "bg-red-100 text-red-700 border-red-300",
+    Medium: "bg-yellow-100 text-yellow-700 border-yellow-300",
+    Low: "bg-green-100 text-green-700 border-green-300",
+  };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow mt-6">
-      <h2 className="text-xl font-bold mb-2">Result</h2>
+    <div className="mt-8 border rounded-xl p-6 shadow bg-gray-50">
+      <h2 className="text-2xl font-bold text-gray-800 mb-4">
+        Analysis Result
+      </h2>
 
-      <p><b>Driver State:</b> {result.state}</p>
-      <p className={riskColor}><b>Risk Level:</b> {result.risk}</p>
-      <p><b>Confidence:</b> {(result.confidence * 100).toFixed(2)}%</p>
+      <div className="space-y-4">
+        <p className="text-lg">
+          <span className="font-semibold text-gray-700">
+            Driver State:
+          </span>{" "}
+          <span className="text-indigo-700 font-bold">
+            {result.state}
+          </span>
+        </p>
+
+        <div
+          className={`inline-block px-4 py-2 rounded-full font-semibold border ${
+            riskStyles[result.risk]
+          }`}
+        >
+          Risk Level: {result.risk}
+        </div>
+
+        <p className="text-lg">
+          <span className="font-semibold text-gray-700">
+            Confidence:
+          </span>{" "}
+          {(result.confidence * 100).toFixed(2)}%
+        </p>
+      </div>
     </div>
   );
 };

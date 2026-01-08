@@ -1,3 +1,4 @@
+import bgImage from "./assets/bg.png";
 import { useState } from "react";
 import UploadForm from "./components/UploadForm";
 import ResultCard from "./components/ResultCard";
@@ -8,21 +9,44 @@ function App() {
   const [error, setError] = useState("");
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center p-6">
-      <h1 className="text-3xl font-bold text-blue-600 mb-6">
-        Driver Facial Analysis System
-      </h1>
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        backgroundImage: `url(${bgImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="bg-white/90 backdrop-blur-md w-full max-w-3xl rounded-2xl shadow-2xl p-8">
+        
+        <h1 className="text-4xl font-extrabold text-center text-indigo-700">
+          Driver Facial Analysis System
+        </h1>
 
-      <UploadForm
-        setResult={setResult}
-        setLoading={setLoading}
-        setError={setError}
-      />
+        <p className="text-center text-gray-600 mt-2 mb-8">
+          Detect driver drowsiness and risk level using facial analysis
+        </p>
 
-      {loading && <p className="mt-4">Analyzing...</p>}
-      {error && <p className="text-red-500 mt-4">{error}</p>}
+        <UploadForm
+          setResult={setResult}
+          setLoading={setLoading}
+          setError={setError}
+        />
 
-      <ResultCard result={result} />
+        {loading && (
+          <p className="text-center text-indigo-600 mt-4 font-semibold animate-pulse">
+            Analyzing driver state...
+          </p>
+        )}
+
+        {error && (
+          <p className="text-center text-red-600 mt-4 font-medium">
+            {error}
+          </p>
+        )}
+
+        <ResultCard result={result} />
+      </div>
     </div>
   );
 }

@@ -4,38 +4,28 @@ from tensorflow.keras.models import load_model
 from PIL import Image
 import argparse
 
-# -----------------------------
 # CONFIG
-# -----------------------------
 IMG_SIZE = 227
 MODEL_PATH = "../models/drowsiness_cnn_model.keras"
 THRESHOLD = 0.5
 
-# -----------------------------
 # LOAD MODEL
-# -----------------------------
 model = load_model(MODEL_PATH)
 print("Model loaded")
 
-# -----------------------------
 # LOAD FACE DETECTOR
-# -----------------------------
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
-# -----------------------------
 # PREPROCESS
-# -----------------------------
 def preprocess_image(img):
     img = img.resize((IMG_SIZE, IMG_SIZE))
     img = np.array(img) / 255.0
     img = np.expand_dims(img, axis=0)
     return img
 
-# -----------------------------
 # IMAGE INFERENCE
-# -----------------------------
 def predict_image(image_path):
     img_cv = cv2.imread(image_path)
 
@@ -64,11 +54,10 @@ def predict_image(image_path):
     print(f"Prediction: {label}")
     print(f"Confidence: {prob:.2f}")
 
-# -----------------------------
 # VIDEO INFERENCE
-# -----------------------------
 def predict_video(video_path, frame_interval=30):
     cap = cv2.VideoCapture(video_path)
+    
 
     if not cap.isOpened():
         print("ERROR: Could not open video")
@@ -139,9 +128,7 @@ def predict_video(video_path, frame_interval=30):
     else:
         print("No valid face frames processed")
 
-# -----------------------------
 # CLI
-# -----------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, help="Path to image")

@@ -1,45 +1,40 @@
-const ResultCard = ({ result }) => {
-  if (!result) return null;
+function ResultCard({ result }) {
+  if (!result) {
+    return (
+      <p className="text-center text-gray-500 mt-6">
+        Result will be shown here
+      </p>
+    );
+  }
 
-  const riskStyles = {
-    High: "bg-red-100 text-red-700 border-red-300",
-    Medium: "bg-yellow-100 text-yellow-700 border-yellow-300",
-    Low: "bg-green-100 text-green-700 border-green-300",
-  };
+  const riskColor =
+    result.risk === "High"
+      ? "text-red-600"
+      : result.risk === "Medium"
+      ? "text-yellow-600"
+      : "text-green-600";
 
   return (
-    <div className="mt-8 border rounded-xl p-6 shadow bg-gray-50">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">
+    <div className="mt-8 p-6 border rounded-xl bg-gray-50 text-center">
+      <h2 className="text-xl font-bold text-gray-700 mb-2">
         Analysis Result
       </h2>
 
-      <div className="space-y-4">
-        <p className="text-lg">
-          <span className="font-semibold text-gray-700">
-            Driver State:
-          </span>{" "}
-          <span className="text-indigo-700 font-bold">
-            {result.state}
-          </span>
-        </p>
+      <p className="text-lg">
+        Driver State:{" "}
+        <span className="font-semibold text-indigo-600">
+          {result.state}
+        </span>
+      </p>
 
-        <div
-          className={`inline-block px-4 py-2 rounded-full font-semibold border ${
-            riskStyles[result.risk]
-          }`}
-        >
-          Risk Level: {result.risk}
-        </div>
-
-        <p className="text-lg">
-          <span className="font-semibold text-gray-700">
-            Confidence:
-          </span>{" "}
-          {(result.confidence * 100).toFixed(2)}%
-        </p>
-      </div>
+      <p className="text-lg mt-2">
+        Risk Level:{" "}
+        <span className={`font-bold ${riskColor}`}>
+          {result.risk}
+        </span>
+      </p>
     </div>
   );
-};
+}
 
 export default ResultCard;

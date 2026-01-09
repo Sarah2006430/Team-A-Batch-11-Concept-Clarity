@@ -13,7 +13,7 @@ function UploadForm({ setToast, setResult }) {
     setToast("Analyzing driver state...");
     setTimeout(() => setToast(""), 3000);
 
-    // Dummy result (until backend is connected)
+    // Dummy result until backend integration
     setTimeout(() => {
       setResult({
         state: "Drowsy",

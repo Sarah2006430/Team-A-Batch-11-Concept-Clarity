@@ -4,20 +4,21 @@ import shutil
 import os
 import cv2
 import numpy as np
-from PIL import Image
 from tensorflow.keras.models import load_model
 
 # ---------------- CONFIG ----------------
 IMG_SIZE = 227
-MODEL_PATH = "../ml/models/drowsiness_cnn_model.keras"
+MODEL_PATH = "../ml/models/drowsiness_cnn_model_fixed.keras"
 UPLOAD_DIR = "uploads"
-THRESHOLD = 0.5
-FRAME_INTERVAL = 30  # ~1 frame per second
+THRESHOLD = 0.4
+
+FRAME_INTERVAL = 30
+VIDEO_RATIO_THRESHOLD = 0.35
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ---------------- LOAD MODEL ----------------
-model = load_model(MODEL_PATH)
+model = load_model(MODEL_PATH, compile=False)
 print("Model loaded")
 
 # ---------------- LOAD FACE DETECTOR ----------------
@@ -30,23 +31,18 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ---------------- HELPERS ----------------
-def preprocess_image(img):
-    img = img.resize((IMG_SIZE, IMG_SIZE))
-    img = np.array(img) / 255.0
-    img = np.expand_dims(img, axis=0)
-    return img
-
-
 def predict_face(face_bgr):
+    # EXACTLY same as inference.py
     face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
-    img = Image.fromarray(face_rgb)
-    img = preprocess_image(img)
+    img = cv2.resize(face_rgb, (IMG_SIZE, IMG_SIZE))
+    img = img.astype("float32") / 255.0
+    img = np.expand_dims(img, axis=0)
     prob = model.predict(img, verbose=0)[0][0]
     return float(prob)
 
@@ -72,19 +68,20 @@ async def predict_image(file: UploadFile = File(...)):
     gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
-    if len(faces) == 0:
-        return {"error": "No face detected"}
-
-    # Take first detected face
-    x, y, w, h = faces[0]
-    face = img_cv[y:y+h, x:x+w]
+    if len(faces) > 0:
+        x, y, w, h = faces[0]
+        face = img_cv[y:y+h, x:x+w]
+    else:
+        face = img_cv  # fallback like inference.py
 
     prob = predict_face(face)
-    label = "DROWSY" if prob > THRESHOLD else "NON-DROWSY"
+    label = "DROWSY" if prob >= THRESHOLD else "NON-DROWSY"
+
+    print("BACKEND IMAGE PROB:", prob)
 
     return {
+        "raw_probability": prob,
         "prediction": label,
-        "confidence": round(prob, 2)
     }
 
 
@@ -100,7 +97,7 @@ async def predict_video(file: UploadFile = File(...)):
     if not cap.isOpened():
         return {"error": "Could not open video"}
 
-    predictions = []
+    probs = []
     frame_count = 0
 
     while cap.isOpened():
@@ -115,28 +112,27 @@ async def predict_video(file: UploadFile = File(...)):
             if len(faces) > 0:
                 x, y, w, h = faces[0]
                 face = frame[y:y+h, x:x+w]
+            else:
+                face = frame
 
-                prob = predict_face(face)
-
-                # Ignore uncertain frames
-                if 0.3 < prob < 0.7:
-                    frame_count += 1
-                    continue
-
-                predictions.append(prob)
+            prob = predict_face(face)
+            probs.append(prob)
 
         frame_count += 1
 
     cap.release()
 
-    if not predictions:
-        return {"error": "No valid face frames processed"}
+    if not probs:
+        return {"error": "No frames processed"}
 
-    avg_prob = float(np.mean(predictions))
-    label = "DROWSY" if avg_prob > THRESHOLD else "NON-DROWSY"
+    drowsy_like = sum(1 for p in probs if p >= THRESHOLD)
+    ratio = drowsy_like / len(probs)
+    label = "DROWSY" if ratio >= VIDEO_RATIO_THRESHOLD else "NON-DROWSY"
+
+    print("BACKEND VIDEO AVG:", sum(probs) / len(probs))
 
     return {
+        "raw_probability": float(sum(probs) / len(probs)),
         "prediction": label,
-        "average_confidence": round(avg_prob, 2),
-        "frames_analyzed": len(predictions)
+        "frames_analyzed": len(probs),
     }

@@ -1,11 +1,7 @@
 const ResultCard = ({ result }) => {
   if (!result) return null;
 
-  const riskStyles = {
-    High: "bg-red-100 text-red-700 border-red-300",
-    Medium: "bg-yellow-100 text-yellow-700 border-yellow-300",
-    Low: "bg-green-100 text-green-700 border-green-300",
-  };
+  const prob = result.raw_probability;
 
   return (
     <div className="mt-8 border rounded-xl p-6 shadow bg-gray-50">
@@ -19,23 +15,15 @@ const ResultCard = ({ result }) => {
             Driver State:
           </span>{" "}
           <span className="text-indigo-700 font-bold">
-            {result.state}
+            {result.prediction}
           </span>
         </p>
 
-        <div
-          className={`inline-block px-4 py-2 rounded-full font-semibold border ${
-            riskStyles[result.risk]
-          }`}
-        >
-          Risk Level: {result.risk}
-        </div>
-
         <p className="text-lg">
           <span className="font-semibold text-gray-700">
-            Confidence:
+            Raw Model Output:
           </span>{" "}
-          {(result.confidence * 100).toFixed(2)}%
+          {(prob * 100).toFixed(2)}%
         </p>
       </div>
     </div>

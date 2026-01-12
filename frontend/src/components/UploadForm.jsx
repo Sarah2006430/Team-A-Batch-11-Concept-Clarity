@@ -45,13 +45,11 @@ const UploadForm = ({ setResult, setLoading, setError }) => {
 
       const res = await axios.post(endpoint, formData);
       const data = res.data;
-
-      const confidence = data.confidence ?? data.average_confidence;
+console.log("BACKEND RESPONSE:", data);
 
       setResult({
-        state: data.prediction,
-        confidence,
-        risk: confidence > 0.7 ? "High" : confidence > 0.4 ? "Medium" : "Low",
+        prediction: data.prediction,
+        raw_probability: data.raw_probability,
       });
     } catch (err) {
       setError("Backend not connected or error occurred");

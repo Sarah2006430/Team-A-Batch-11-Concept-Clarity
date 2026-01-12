@@ -1,144 +1,137 @@
+import argparse
+import os
 import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
-from PIL import Image
-import argparse
 
-# CONFIG
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "drowsiness_cnn_model_fixed.keras")
 IMG_SIZE = 227
-MODEL_PATH = "../models/drowsiness_cnn_model.keras"
-THRESHOLD = 0.5
 
-# LOAD MODEL
-model = load_model(MODEL_PATH)
-print("Model loaded")
+FRAME_THRESHOLD = 0.4
+VIDEO_RATIO_THRESHOLD = 0.35
 
-# LOAD FACE DETECTOR
-face_cascade = cv2.CascadeClassifier(
+FACE_CASCADE = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
-# PREPROCESS
-def preprocess_image(img):
-    img = img.resize((IMG_SIZE, IMG_SIZE))
-    img = np.array(img) / 255.0
+def preprocess(img):
+    img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+    img = img.astype("float32") / 255.0
     img = np.expand_dims(img, axis=0)
     return img
 
-# IMAGE INFERENCE
-def predict_image(image_path):
-    img_cv = cv2.imread(image_path)
+def predict_image(model, img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = FACE_CASCADE.detectMultiScale(gray, 1.3, 5)
 
-    if img_cv is None:
-        print("ERROR: Could not read image")
+    used_fallback = False
+
+    if len(faces) > 0:
+        x, y, w, h = faces[0]
+        roi = img[y:y+h, x:x+w]
+    else:
+        roi = img
+        used_fallback = True
+
+    roi = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
+    input_img = preprocess(roi)
+
+    prob = float(model.predict(input_img, verbose=0)[0][0])
+    label = "DROWSY" if prob >= FRAME_THRESHOLD else "NON-DROWSY"
+
+    return label, prob, used_fallback
+
+def run_image(model, path):
+    img = cv2.imread(path)
+    if img is None:
+        print("Unable to read image")
         return
 
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    label, prob, fallback = predict_image(model, img)
 
-    if len(faces) == 0:
-        print("No face detected")
-        return
+    color = (0, 0, 255) if label == "DROWSY" else (0, 255, 0)
+    text = f"{label} ({prob:.2f})"
 
-    # Take the first detected face
-    x, y, w, h = faces[0]
-    face = img_cv[y:y+h, x:x+w]
+    cv2.putText(img, text, (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
-    face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-    img = Image.fromarray(face_rgb)
-    img = preprocess_image(img)
+    if fallback:
+        cv2.putText(img, "Face not detected - fallback",
+                    (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-    prob = model.predict(img, verbose=0)[0][0]
-    label = "DROWSY" if prob > THRESHOLD else "NON-DROWSY"
+    print("Image Result:")
+    print(f"  Raw model probability: {prob:.4f}")
+    print(f"  Final label: {label}")
 
-    print(f"Prediction: {label}")
-    print(f"Confidence: {prob:.2f}")
+    cv2.imshow("Inference Result", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-# VIDEO INFERENCE
-def predict_video(video_path, frame_interval=30):
-    cap = cv2.VideoCapture(video_path)
-    
+def run_video(model, path):
+    cap = cv2.VideoCapture(path)
+    frame_id = 0
+    probs = []
 
-    if not cap.isOpened():
-        print("ERROR: Could not open video")
-        return
-
-    frame_count = 0
-    predictions = []
-    last_label = "Detecting..."
-    last_prob = 0.0
-    last_color = (255, 255, 255)
+    print("\n--- Frame Log ---")
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        if frame_count % frame_interval == 0:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+        frame_id += 1
+        if frame_id % 5 != 0:
+            continue
 
-            if len(faces) > 0:
-                x, y, w, h = faces[0]
-                face = frame[y:y+h, x:x+w]
+        label, prob, fallback = predict_image(model, frame)
+        probs.append(prob)
 
-                face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(face_rgb)
-                img = preprocess_image(img)
+        color = (0, 0, 255) if label == "DROWSY" else (0, 255, 0)
+        text = f"{label} ({prob:.2f})"
 
-                prob = model.predict(img, verbose=0)[0][0]
-                predictions.append(prob)
+        cv2.putText(frame, text, (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
-                last_label = "DROWSY" if prob > THRESHOLD else "NON-DROWSY"
-                last_prob = prob
-                last_color = (0, 0, 255) if last_label == "DROWSY" else (0, 255, 0)
+        print(f"Frame {frame_id:03d} -> {label} ({prob:.2f})")
 
-                # Draw face box
-                cv2.rectangle(frame, (x, y), (x+w, y+h), last_color, 2)
-
-        # Draw border + text
-        cv2.rectangle(frame, (10, 10), (frame.shape[1]-10, frame.shape[0]-10), last_color, 4)
-
-        cv2.putText(
-            frame,
-            f"{last_label} ({last_prob:.2f})",
-            (30, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            last_color,
-            3
-        )
-
-        cv2.imshow("Driver Drowsiness Detection", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        cv2.imshow("Video Inference", frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
-
-        frame_count += 1
 
     cap.release()
     cv2.destroyAllWindows()
 
-    if predictions:
-        avg_prob = np.mean(predictions)
-        final_label = "DROWSY" if avg_prob > THRESHOLD else "NON-DROWSY"
-        print("\nFinal Video Prediction:", final_label)
-        print("Average confidence:", round(avg_prob, 2))
-        print("Frames analyzed:", len(predictions))
-    else:
-        print("No valid face frames processed")
+    if not probs:
+        print("No frames analyzed")
+        return
 
-# CLI
-if __name__ == "__main__":
+    drowsy_like = sum(1 for p in probs if p >= FRAME_THRESHOLD)
+    ratio = drowsy_like / len(probs)
+    final = "DROWSY" if ratio >= VIDEO_RATIO_THRESHOLD else "NON-DROWSY"
+
+    print("\n--- Summary ---")
+    print(f"Frames analyzed: {len(probs)}")
+    print(f"Drowsy-like frames: {drowsy_like}")
+    print(f"Drowsy ratio: {ratio:.2f}")
+    print(f"Final Video Prediction: {final}")
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image", type=str, help="Path to image")
-    parser.add_argument("--video", type=str, help="Path to video")
-
+    parser.add_argument("--image", type=str)
+    parser.add_argument("--video", type=str)
     args = parser.parse_args()
 
+    print("Loading model...")
+    model = load_model(MODEL_PATH, compile=False)
+    print("Model loaded successfully")
+
     if args.image:
-        predict_image(args.image)
+        run_image(model, args.image)
     elif args.video:
-        predict_video(args.video)
+        run_video(model, args.video)
     else:
-        print("Provide --image or --video input")
+        print("Provide --image or --video")
+
+if __name__ == "__main__":
+    main()

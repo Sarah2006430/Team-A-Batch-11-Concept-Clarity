@@ -4,9 +4,30 @@ node_modules/
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# ML generated data
+# Virtual environments
+backend_env/
+legacy_env/
+venv/
+Lib/
+Scripts/
+include/
+tcl/
+DLLs/
+Doc
+python*.dll
+
+# ML generated data 
 *.npy
 ml/data/
 ml/models/
 
+# Runtime folders
+backend/uploads/
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+.vscode/
